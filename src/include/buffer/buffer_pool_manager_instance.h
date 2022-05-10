@@ -28,6 +28,7 @@ namespace bustub {
  * BufferPoolManager reads disk pages to and from its internal buffer pool.
  */
 class BufferPoolManagerInstance : public BufferPoolManager {
+  friend class ParallelBufferPoolManager;
  public:
   /**
    * Creates a new BufferPoolManagerInstance.
@@ -123,6 +124,38 @@ class BufferPoolManagerInstance : public BufferPoolManager {
 
   // init page
   void resetPage(Page* page);
+
+  void print() {
+    using namespace std;
+    cout << "instance " << instance_index_ << ": ";
+    cout << "pages_table_[";
+    for(auto it : page_table_) {
+      cout << "("<< it.first << "," << it.second << "), ";
+    }
+    cout << "], ";
+    cout << "Pages[";
+    for (size_t i = 0 ; i < pool_size_; i++) {
+      auto p = pages_ + i;
+      cout << "p" << i << "(";
+      cout << p->GetPageId() << ",";
+      cout << p->GetPinCount() << "), ";
+    }
+    cout << "], " << "free[";
+    for(auto it = free_list_.begin(); it != free_list_.end(); ++it) {
+      cout << *(it) << ",";
+    }
+    cout << "], " << "lru[";
+    LRUReplacer* lru = (LRUReplacer*)replacer_;
+    for(auto it = lru->lru_list_.begin(); it != lru->lru_list_.end(); ++it) {
+      cout << *(it) << ",";
+    }
+    cout << "], ";
+    cout << "lru map[";
+    for(auto it : lru->lru_map_) {
+      cout << "("<< it.first << "," << *(it.second) << "), ";
+    }
+    cout << "]" << endl;
+  };
 
   /** Number of pages in the buffer pool. */
   const size_t pool_size_;

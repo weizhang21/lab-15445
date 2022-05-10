@@ -26,6 +26,7 @@ namespace bustub {
  * LRUReplacer implements the Least Recently Used replacement policy.
  */
 class LRUReplacer : public Replacer {
+  friend class BufferPoolManagerInstance;
  public:
   /**
    * Create a new LRUReplacer.

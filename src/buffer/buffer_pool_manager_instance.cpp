@@ -70,6 +70,10 @@ bool BufferPoolManagerInstance::FlushPgImp(page_id_t page_id) {
 
 void BufferPoolManagerInstance::FlushAllPgsImp() {
   // You can do it!
+  std::lock_guard<std::mutex> lock(latch_);
+  for (auto& it : page_table_) {
+    FlushPgImp(it.first);
+  }
 }
 
 Page *BufferPoolManagerInstance::NewPgImp(page_id_t *page_id) {
@@ -88,15 +92,12 @@ Page *BufferPoolManagerInstance::NewPgImp(page_id_t *page_id) {
   frame_id_t frame_id;
   // allocate frame from free_list first
   if (!free_list_.empty()) {
-    frame_id = free_list_.back();
-    free_list_.pop_back();
+    frame_id = free_list_.front();
+    free_list_.pop_front();
     page = pages_ + frame_id;
   } else { // allocate frame from lruReplace
     BUSTUB_ASSERT(replacer_->Victim(&frame_id), true);
     page = pages_ + frame_id;
-    // std::cout << "replace: " << page->page_id_;
-    // std::cout << " is dirty: " << page->is_dirty_;
-    // std::cout << "  data: " << page->data_ << std::endl;
     page->WLatch();
     if (page->IsDirty()) {
       FlushPgImp(page->GetPageId());
@@ -111,6 +112,7 @@ Page *BufferPoolManagerInstance::NewPgImp(page_id_t *page_id) {
   page->page_id_ = *page_id;
   page->pin_count_ = 1;
   page->WUnlatch();
+  // print();
   return page;
 }
 
@@ -124,13 +126,15 @@ Page *BufferPoolManagerInstance::FetchPgImp(page_id_t page_id) {
   // 4.     Update P's metadata, read in the page content from disk, and then return a pointer to P.
  
   std::lock_guard<std::mutex> lock(latch_);
-  Page* page;
+  Page* page = nullptr;
   // 1.1 p exist
   if (page_table_.count(page_id)) {
     page = pages_ + page_table_[page_id];
     page->WLatch();
     page->pin_count_ += 1;
     page->WUnlatch();
+    replacer_->Pin(page_table_[page_id]);
+    // print();
     return page;
   }
   // 1.2 p does not exist
@@ -139,8 +143,8 @@ Page *BufferPoolManagerInstance::FetchPgImp(page_id_t page_id) {
   // 1.2.3 all pinned 
   frame_id_t frame_id;
   if (!free_list_.empty()) {
-    frame_id = free_list_.back();
-    free_list_.pop_back();
+    frame_id = free_list_.front();
+    free_list_.pop_front();
   } else if(!replacer_->Victim(&frame_id)) {
     return nullptr;
   }
@@ -163,6 +167,7 @@ Page *BufferPoolManagerInstance::FetchPgImp(page_id_t page_id) {
   disk_manager_->ReadPage(page_id,page->GetData());
 
   page->WUnlatch();
+  // print();
   return page;
 }
 
@@ -212,6 +217,7 @@ bool BufferPoolManagerInstance::UnpinPgImp(page_id_t page_id, bool is_dirty) {
     replacer_->Unpin(page_table_[page->GetPageId()]);
   }
   page->WUnlatch();
+  // print();
   return true; 
 }
 
