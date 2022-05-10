@@ -15,22 +15,21 @@
 namespace bustub {
 
 ParallelBufferPoolManager::ParallelBufferPoolManager(size_t num_instances, size_t pool_size, DiskManager *disk_manager,
-                                                     LogManager *log_manager) 
-                                                     :num_instances_(num_instances),
-                                                     pool_size_(pool_size) {
+                                                     LogManager *log_manager)
+    : num_instances_(num_instances), pool_size_(pool_size) {
   // Allocate and create individual BufferPoolManagerInstances
   instances_.resize(num_instances);
-  for (size_t i = 0 ; i < num_instances; ++i) {
+  for (size_t i = 0; i < num_instances; ++i) {
     instances_[i] = new BufferPoolManagerInstance(pool_size, num_instances, i, disk_manager, log_manager);
   }
 }
 
 // Update constructor to destruct all BufferPoolManagerInstances and deallocate any associated memory
 ParallelBufferPoolManager::~ParallelBufferPoolManager() {
-  for (size_t i = 0; i < instances_.size(); i++) {
-      delete instances_[i];
+  for (auto& instance: instances_) {
+    delete instance;
   }
-};
+}
 
 size_t ParallelBufferPoolManager::GetPoolSize() {
   // Get size of all BufferPoolManagerInstances
@@ -64,8 +63,8 @@ Page *ParallelBufferPoolManager::NewPgImp(page_id_t *page_id) {
   // starting index and return nullptr
   // 2.   Bump the starting index (mod number of instances) to start search at a different BPMI each time this function
   // is called
-  Page* page = nullptr;
-  for (size_t i = 0 ; i < num_instances_; ++i) {
+  Page *page = nullptr;
+  for (size_t i = 0; i < num_instances_; ++i) {
     int start = next_instance_id_;
     next_instance_id_ += 1;
     size_t idx = start % num_instances_;
@@ -83,7 +82,7 @@ bool ParallelBufferPoolManager::DeletePgImp(page_id_t page_id) {
 
 void ParallelBufferPoolManager::FlushAllPgsImp() {
   // flush all pages from all BufferPoolManagerInstances
-  for(auto& instance : instances_) {
+  for (auto &instance : instances_) {
     instance->FlushAllPgsImp();
   }
 }

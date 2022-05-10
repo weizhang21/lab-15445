@@ -116,7 +116,7 @@ TEST(ParallelBufferPoolManagerTest, SampleTest) {
   for (size_t i = buffer_pool_size; i < buffer_pool_size * num_instances * 2; ++i) {
     EXPECT_EQ(nullptr, bpm->NewPage(&page_id_temp));
   }
-  
+
   // Write world out to page 4
   auto page4 = bpm->FetchPage(4);
   snprintf(page4->GetData(), PAGE_SIZE, "World");

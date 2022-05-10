@@ -14,16 +14,14 @@
 
 namespace bustub {
 
-LRUReplacer::LRUReplacer(size_t num_pages) {
-  capacity_ = num_pages;
-}
+LRUReplacer::LRUReplacer(size_t num_pages) { capacity_ = num_pages; }
 
 LRUReplacer::~LRUReplacer() = default;
 
-bool LRUReplacer::Victim(frame_id_t *frame_id) { 
+bool LRUReplacer::Victim(frame_id_t *frame_id) {
   std::lock_guard<std::mutex> lock(latch_);
   if (lru_map_.empty()) {
-    return false; 
+    return false;
   }
   *frame_id = lru_list_.back();
   lru_list_.pop_back();
@@ -33,19 +31,19 @@ bool LRUReplacer::Victim(frame_id_t *frame_id) {
 
 void LRUReplacer::Pin(frame_id_t frame_id) {
   std::lock_guard<std::mutex> lock(latch_);
-  if (lru_map_.count(frame_id)) {
-      auto it = lru_map_[frame_id];
-      lru_map_.erase(frame_id);
-      lru_list_.erase(it);
+  if (lru_map_.find(frame_id) != lru_map_.end()) {
+    auto it = lru_map_[frame_id];
+    lru_map_.erase(frame_id);
+    lru_list_.erase(it);
   }
 }
 
 void LRUReplacer::Unpin(frame_id_t frame_id) {
   std::lock_guard<std::mutex> lock(latch_);
-  if(lru_map_.count(frame_id)) {
+  if (lru_map_.find(frame_id) != lru_map_.end()) {
     return;
   }
-  if(lru_map_.size() == capacity_) {
+  if (lru_map_.size() == capacity_) {
     frame_id_t vic = lru_list_.back();
     lru_list_.pop_back();
     lru_map_.erase(vic);

@@ -14,8 +14,8 @@
 
 #include <list>
 #include <mutex>  // NOLINT
-#include <vector>
 #include <unordered_map>
+#include <vector>
 
 #include "buffer/replacer.h"
 #include "common/config.h"
@@ -27,6 +27,7 @@ namespace bustub {
  */
 class LRUReplacer : public Replacer {
   friend class BufferPoolManagerInstance;
+
  public:
   /**
    * Create a new LRUReplacer.
