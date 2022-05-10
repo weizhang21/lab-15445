@@ -56,15 +56,15 @@ void BufferPoolManagerInstance::ResetPage(Page *page) {
 
 bool BufferPoolManagerInstance::FlushPgImp(page_id_t page_id) {
   // Make sure you call DiskManager::WritePage!
+  std::lock_guard<std::mutex> lock(latch_);
   if (page_table_.find(page_id) == page_table_.end()) {
     return false;
   }
   Page *page = pages_ + page_table_[page_id];
+  page->WLatch();
   page->is_dirty_ = false;
-
   disk_manager_->WritePage(page_id, page->GetData());
-  // std::cout << "flush page id: " << page_id;
-  // std::cout << " , data: " << page->data_<<std::endl;
+  page->WUnlatch();
   return true;
 }
 
@@ -72,7 +72,12 @@ void BufferPoolManagerInstance::FlushAllPgsImp() {
   // You can do it!
   std::lock_guard<std::mutex> lock(latch_);
   for (auto &it : page_table_) {
-    FlushPgImp(it.first);
+    page_id_t page_id = it.first;
+    Page *page = pages_ + page_table_[it.first];
+    page->WLatch();
+    page->is_dirty_ = false;
+    disk_manager_->WritePage(page_id, page->GetData());
+    page->WUnlatch();
   }
 }
 
@@ -100,7 +105,8 @@ Page *BufferPoolManagerInstance::NewPgImp(page_id_t *page_id) {
     page = pages_ + frame_id;
     page->WLatch();
     if (page->IsDirty()) {
-      FlushPgImp(page->GetPageId());
+      page->is_dirty_ = false;
+      disk_manager_->WritePage(page->GetPageId(), page->GetData());
     }
     page->WUnlatch();
     page_table_.erase(page->GetPageId());
@@ -153,7 +159,8 @@ Page *BufferPoolManagerInstance::FetchPgImp(page_id_t page_id) {
   page = pages_ + frame_id;
   page->WLatch();
   if (page->IsDirty()) {
-    FlushPgImp(page->GetPageId());
+    page->is_dirty_ = false;
+    disk_manager_->WritePage(page->GetPageId(), page->GetData());
   }
 
   // 3, delete R and insert p
@@ -201,6 +208,9 @@ bool BufferPoolManagerInstance::DeletePgImp(page_id_t page_id) {
 
 bool BufferPoolManagerInstance::UnpinPgImp(page_id_t page_id, bool is_dirty) {
   std::lock_guard<std::mutex> lock(latch_);
+  if (page_table_.find(page_id) == page_table_.end()) {
+    return false;
+  }
   Page *page = pages_ + page_table_[page_id];
   // check pin_count
   page->RLatch();
