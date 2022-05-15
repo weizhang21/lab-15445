@@ -120,6 +120,7 @@ void BPLUSTREE_TYPE::StartNewTree(const KeyType &key, const ValueType &value) {
   node->Init(root->GetPageId(), INVALID_PAGE_ID, leaf_max_size_);
   node->Insert(key, value, comparator_);
   root_page_id_ = root->GetPageId();
+  UpdateRootPageId(0);
   buffer_pool_manager_->FlushPage(root->GetPageId());
   buffer_pool_manager_->UnpinPage(root->GetPageId(), true);
 }
@@ -225,6 +226,7 @@ void BPLUSTREE_TYPE::InsertIntoParent(BPlusTreePage *old_node, const KeyType &ke
   if (parent_node->GetSize() == 0) {
     parent_node->PopulateNewRoot(old_node->GetPageId(), key, new_node->GetPageId());
     root_page_id_ = parent_id;
+    UpdateRootPageId(0);
   } else {
     int size = parent_node->InsertNodeAfter(old_node->GetPageId(), key, new_node->GetPageId());
     // 2) if size > internal_max_size_ , split
@@ -319,7 +321,19 @@ bool BPLUSTREE_TYPE::AdjustRoot(BPlusTreePage *old_root_node) { return false; }
  * @return : index iterator
  */
 INDEX_TEMPLATE_ARGUMENTS
-INDEXITERATOR_TYPE BPLUSTREE_TYPE::Begin() { return INDEXITERATOR_TYPE(); }
+INDEXITERATOR_TYPE BPLUSTREE_TYPE::Begin() {
+  Page* page = buffer_pool_manager_->FetchPage(root_page_id_);
+  BPlusTreePage* node = reinterpret_cast<BPlusTreePage*>(page->GetData());
+  while (!node->IsLeafPage()) {
+    BPlusTreeInternalPage<INTERNAL_KVC>* internal_node = 
+        static_cast<BPlusTreeInternalPage<INTERNAL_KVC>*>(node);
+    page_id_t next_page_id = internal_node->ValueAt(0);
+    buffer_pool_manager_->UnpinPage(node->GetPageId(), false);
+    page = buffer_pool_manager_->FetchPage(next_page_id);
+    node = reinterpret_cast<BPlusTreePage*>(page->GetData());
+  }
+  return INDEXITERATOR_TYPE(static_cast<BPlusTreeLeafPage<KVC>*>(node), 0, buffer_pool_manager_); 
+}
 
 /*
  * Input parameter is low key, find the leaf page that contains the input key
@@ -327,7 +341,12 @@ INDEXITERATOR_TYPE BPLUSTREE_TYPE::Begin() { return INDEXITERATOR_TYPE(); }
  * @return : index iterator
  */
 INDEX_TEMPLATE_ARGUMENTS
-INDEXITERATOR_TYPE BPLUSTREE_TYPE::Begin(const KeyType &key) { return INDEXITERATOR_TYPE(); }
+INDEXITERATOR_TYPE BPLUSTREE_TYPE::Begin(const KeyType &key) {
+  Page* root_page = buffer_pool_manager_->FetchPage(root_page_id_); 
+  Page* page = Search(key, root_page);
+  BPlusTreeLeafPage<KVC>* node = reinterpret_cast<BPlusTreeLeafPage<KVC>*>(page->GetData());
+  return INDEXITERATOR_TYPE(node, node->KeyIndex(key, comparator_), buffer_pool_manager_);
+}
 
 /*
  * Input parameter is void, construct an index iterator representing the end
@@ -335,7 +354,19 @@ INDEXITERATOR_TYPE BPLUSTREE_TYPE::Begin(const KeyType &key) { return INDEXITERA
  * @return : index iterator
  */
 INDEX_TEMPLATE_ARGUMENTS
-INDEXITERATOR_TYPE BPLUSTREE_TYPE::End() { return INDEXITERATOR_TYPE(); }
+INDEXITERATOR_TYPE BPLUSTREE_TYPE::End() {
+  Page* page = buffer_pool_manager_->FetchPage(root_page_id_);
+  BPlusTreePage* node = reinterpret_cast<BPlusTreePage*>(page->GetData());
+  while (!node->IsLeafPage()) {
+    BPlusTreeInternalPage<INTERNAL_KVC>* internal_node = 
+        static_cast<BPlusTreeInternalPage<INTERNAL_KVC>*>(node);
+    page_id_t next_page_id = internal_node->ValueAt(internal_node->GetSize() - 1);
+    buffer_pool_manager_->UnpinPage(node->GetPageId(), false);
+    page = buffer_pool_manager_->FetchPage(next_page_id);
+    node = reinterpret_cast<BPlusTreePage*>(page->GetData());
+  }
+  return INDEXITERATOR_TYPE(static_cast<BPlusTreeLeafPage<KVC>*>(node), node->GetSize(), buffer_pool_manager_); 
+}
 
 /*****************************************************************************
  * UTILITIES AND DEBUG

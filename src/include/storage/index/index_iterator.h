@@ -16,8 +16,8 @@
 #include "storage/page/b_plus_tree_leaf_page.h"
 
 namespace bustub {
-
 #define INDEXITERATOR_TYPE IndexIterator<KeyType, ValueType, KeyComparator>
+#define KVC KeyType, ValueType, KeyComparator
 
 INDEX_TEMPLATE_ARGUMENTS
 class IndexIterator {
@@ -26,18 +26,33 @@ class IndexIterator {
   IndexIterator();
   ~IndexIterator();
 
+  IndexIterator(BPlusTreeLeafPage<KVC>* leaf_node, int start, 
+                BufferPoolManager *buffer_pool_manager);
+
   bool IsEnd();
 
   const MappingType &operator*();
 
   IndexIterator &operator++();
 
-  bool operator==(const IndexIterator &itr) const { throw std::runtime_error("unimplemented"); }
+  bool operator==(const IndexIterator &itr) const { 
+    return cur_node_->GetPageId() == itr.GetPageId() && 
+           cur_idx_ == itr.GetIndex();
+  }
 
-  bool operator!=(const IndexIterator &itr) const { throw std::runtime_error("unimplemented"); }
+  bool operator!=(const IndexIterator &itr) const { 
+    return cur_node_->GetPageId() != itr.GetPageId() || 
+           cur_idx_ != itr.GetIndex();
+  }
+
+  page_id_t GetPageId() const { return cur_node_->GetPageId(); }
+  int GetIndex() const { return cur_idx_; }
 
  private:
   // add your own private member variables here
+  BPlusTreeLeafPage<KVC>* cur_node_;
+  int cur_idx_;
+  BufferPoolManager *buffer_pool_manager_;
 };
 
 }  // namespace bustub
