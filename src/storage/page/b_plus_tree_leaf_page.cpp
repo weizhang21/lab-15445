@@ -13,6 +13,7 @@
 
 #include "common/exception.h"
 #include "common/rid.h"
+#include "storage/page/b_plus_tree_page.h"
 #include "storage/page/b_plus_tree_leaf_page.h"
 
 namespace bustub {
@@ -27,34 +28,47 @@ namespace bustub {
  * next page id and set max size
  */
 INDEX_TEMPLATE_ARGUMENTS
-void B_PLUS_TREE_LEAF_PAGE_TYPE::Init(page_id_t page_id, page_id_t parent_id, int max_size) {}
+void B_PLUS_TREE_LEAF_PAGE_TYPE::Init(page_id_t page_id, page_id_t parent_id, int max_size) {
+  IndexPageType page_type = sizeof(ValueType) == sizeof(page_id_t) ? 
+                            IndexPageType::INTERNAL_PAGE : IndexPageType::LEAF_PAGE;
+  SetPageType(page_type);
+  SetLSN(INVALID_LSN);
+  SetSize(0);
+  SetMaxSize(max_size);
+  SetParentPageId(parent_id);
+  SetPageId(page_id); 
+  SetNextPageId(INVALID_PAGE_ID); 
+}
 
 /**
  * Helper methods to set/get next page id
  */
 INDEX_TEMPLATE_ARGUMENTS
-page_id_t B_PLUS_TREE_LEAF_PAGE_TYPE::GetNextPageId() const { return INVALID_PAGE_ID; }
+page_id_t B_PLUS_TREE_LEAF_PAGE_TYPE::GetNextPageId() const { return next_page_id_; }
 
 INDEX_TEMPLATE_ARGUMENTS
-void B_PLUS_TREE_LEAF_PAGE_TYPE::SetNextPageId(page_id_t next_page_id) {}
+void B_PLUS_TREE_LEAF_PAGE_TYPE::SetNextPageId(page_id_t next_page_id) { next_page_id_ = next_page_id; }
 
 /**
  * Helper method to find the first index i so that array[i].first >= key
  * NOTE: This method is only used when generating index iterator
  */
 INDEX_TEMPLATE_ARGUMENTS
-int B_PLUS_TREE_LEAF_PAGE_TYPE::KeyIndex(const KeyType &key, const KeyComparator &comparator) const { return 0; }
+int B_PLUS_TREE_LEAF_PAGE_TYPE::KeyIndex(const KeyType &key, const KeyComparator &comparator) const { 
+  for (int i = 0 ; i < GetSize(); i ++) {
+    if (comparator(array_[i].first , key) == 0) {
+      return i;
+    }
+  }
+  return -1;
+}
 
 /*
  * Helper method to find and return the key associated with input "index"(a.k.a
  * array offset)
  */
 INDEX_TEMPLATE_ARGUMENTS
-KeyType B_PLUS_TREE_LEAF_PAGE_TYPE::KeyAt(int index) const {
-  // replace with your own code
-  KeyType key{};
-  return key;
-}
+KeyType B_PLUS_TREE_LEAF_PAGE_TYPE::KeyAt(int index) const { return array_[index].first; }
 
 /*
  * Helper method to find and return the key & value pair associated with input
@@ -63,7 +77,7 @@ KeyType B_PLUS_TREE_LEAF_PAGE_TYPE::KeyAt(int index) const {
 INDEX_TEMPLATE_ARGUMENTS
 const MappingType &B_PLUS_TREE_LEAF_PAGE_TYPE::GetItem(int index) {
   // replace with your own code
-  return array_[0];
+  return array_[index];
 }
 
 /*****************************************************************************
@@ -75,7 +89,19 @@ const MappingType &B_PLUS_TREE_LEAF_PAGE_TYPE::GetItem(int index) {
  */
 INDEX_TEMPLATE_ARGUMENTS
 int B_PLUS_TREE_LEAF_PAGE_TYPE::Insert(const KeyType &key, const ValueType &value, const KeyComparator &comparator) {
-  return 0;
+  int idx = 0;
+  int size = GetSize();
+  for (; idx < size; ++idx) {
+    if (comparator(key, array_[idx].first) < 0) {
+      break;
+    }
+  }
+  for (int i = size; i > idx; --i) {
+    array_[i] = array_[i - 1];
+  }
+  array_[idx] = {key, value};
+  IncreaseSize(1);
+  return size + 1;
 }
 
 /*****************************************************************************
@@ -85,7 +111,15 @@ int B_PLUS_TREE_LEAF_PAGE_TYPE::Insert(const KeyType &key, const ValueType &valu
  * Remove half of key & value pairs from this page to "recipient" page
  */
 INDEX_TEMPLATE_ARGUMENTS
-void B_PLUS_TREE_LEAF_PAGE_TYPE::MoveHalfTo(BPlusTreeLeafPage *recipient) {}
+void B_PLUS_TREE_LEAF_PAGE_TYPE::MoveHalfTo(BPlusTreeLeafPage *recipient) {
+  int size = GetSize();
+  int half = size >> 1;
+  for (int i = half; i < size; i++) {
+    recipient->array_[i - half] = array_[i];
+  }
+  recipient->SetSize(size - half);
+  SetSize(half);
+}
 
 /*
  * Copy starting from items, and copy {size} number of elements into me.
@@ -103,6 +137,12 @@ void B_PLUS_TREE_LEAF_PAGE_TYPE::CopyNFrom(MappingType *items, int size) {}
  */
 INDEX_TEMPLATE_ARGUMENTS
 bool B_PLUS_TREE_LEAF_PAGE_TYPE::Lookup(const KeyType &key, ValueType *value, const KeyComparator &comparator) const {
+  for (int i = 0 ; i < GetSize(); i ++) {
+    if (comparator(key, array_[i].first) == 0) {
+      *value = array_[i].second;
+      return true;
+    }
+  }
   return false;
 }
 
