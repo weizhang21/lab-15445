@@ -60,4 +60,12 @@ void BPlusTreePage::SetPageId(page_id_t page_id) { page_id_ = page_id; }
  */
 void BPlusTreePage::SetLSN(lsn_t lsn) { lsn_ = lsn; }
 
+void UpdateChildParentId(page_id_t page_id, page_id_t parent_id, 
+                            BufferPoolManager *buffer_pool_manager) {
+  Page* page = buffer_pool_manager->FetchPage(page_id);
+  BPlusTreePage*  node = reinterpret_cast<BPlusTreePage*>(page->GetData());
+  node->SetParentPageId(parent_id);
+  buffer_pool_manager->UnpinPage(page_id, true);
+}
+
 }  // namespace bustub
