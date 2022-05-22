@@ -22,7 +22,8 @@
 namespace bustub {
 
 #define BPLUSTREE_TYPE BPlusTree<KeyType, ValueType, KeyComparator>
-
+#define KVC KeyType, ValueType, KeyComparator
+#define INTERNAL_KVC KeyType, page_id_t, KeyComparator
 /**
  * Main class providing the API for the Interactive B+ Tree.
  *
@@ -90,15 +91,13 @@ class BPlusTree {
   template <typename N>
   N *Split(N *node);
 
-  template <typename N>
-  bool CoalesceOrRedistribute(N *node, Transaction *transaction = nullptr);
+  void CoalesceOrRedistribute(BPlusTreePage *node, Transaction *transaction = nullptr);
 
-  template <typename N>
-  bool Coalesce(N **neighbor_node, N **node, BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator> **parent,
+  bool Coalesce(BPlusTreePage *left_node, BPlusTreePage *right_node, 
+                BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator> *parent,
                 int index, Transaction *transaction = nullptr);
 
-  template <typename N>
-  void Redistribute(N *neighbor_node, N *node, int index);
+  void Redistribute(BPlusTreePage *neighbor_node, BPlusTreePage *node, int index);
 
   bool AdjustRoot(BPlusTreePage *node);
 
@@ -111,6 +110,9 @@ class BPlusTree {
 
  private:
   Page* Search(const KeyType &key, Page* node);
+  BPlusTreePage* FindSiblingRedistribute(BPlusTreePage* node, int max_size, bool* is_right);
+  BPlusTreePage* FindSiblingCoalesce(BPlusTreePage* node,
+          BPlusTreeInternalPage<INTERNAL_KVC>*& parent, bool* is_right);
   // member variable
   std::string index_name_;
   page_id_t root_page_id_;

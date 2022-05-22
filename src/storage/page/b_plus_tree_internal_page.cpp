@@ -46,6 +46,10 @@ KeyType B_PLUS_TREE_INTERNAL_PAGE_TYPE::KeyAt(int index) const { return array_[i
 INDEX_TEMPLATE_ARGUMENTS
 void B_PLUS_TREE_INTERNAL_PAGE_TYPE::SetKeyAt(int index, const KeyType &key) { array_[index].first = key; }
 
+INDEX_TEMPLATE_ARGUMENTS
+void B_PLUS_TREE_INTERNAL_PAGE_TYPE::SetValueAt(int index, const ValueType &key) { array_[index].second = key; }
+
+
 /*
  * Helper method to find and return array index(or offset), so that its value
  * equals to input "value"
@@ -166,6 +170,7 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::Remove(int index) {
   for (int idx = index; idx < size - 1; idx ++) {
     array_[idx] = array_[idx + 1];
   }
+  IncreaseSize(-1);
 }
 
 /*
@@ -243,12 +248,19 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::MoveLastToFrontOf(BPlusTreeInternalPage *re
   // consider if the end of value is empty ?
   // new pair(mid_key, the end of value) and append to rec beginning
   int size = GetSize();
-  MappingType pair = {middle_key, ValueAt(size - 1)};
-  recipient->CopyFirstFrom(pair, buffer_pool_manager);
+  if (size == 1) {
+    // cur node should be delete and remian only one key and value
+    // set key_0 = middle_key and move fastly
+    MappingType pair = {middle_key, ValueAt(0)};
+    recipient->CopyFirstFrom(pair, buffer_pool_manager);
+    IncreaseSize(-1);
+  } else {
+    recipient->SetKeyAt(0, middle_key);
+    // new pair(the end of key and prev value)
+    recipient->CopyFirstFrom(array_[size - 1], buffer_pool_manager);
+    IncreaseSize(-1);
+  }
   
-  // new pair(the end of key and prev value)
-  pair = {KeyAt(size - 1), ValueAt(size - 2)};
-  recipient->CopyFirstFrom(pair, buffer_pool_manager);
 }
 
 /* Append an entry at the beginning.
