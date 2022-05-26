@@ -26,7 +26,7 @@ ParallelBufferPoolManager::ParallelBufferPoolManager(size_t num_instances, size_
 
 // Update constructor to destruct all BufferPoolManagerInstances and deallocate any associated memory
 ParallelBufferPoolManager::~ParallelBufferPoolManager() {
-  for (auto& instance: instances_) {
+  for (auto &instance : instances_) {
     delete instance;
   }
 }

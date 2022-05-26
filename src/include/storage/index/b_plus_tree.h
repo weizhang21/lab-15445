@@ -39,6 +39,8 @@ class BPlusTree {
   using InternalPage = BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator>;
   using LeafPage = BPlusTreeLeafPage<KeyType, ValueType, KeyComparator>;
 
+  enum OPTYPE { GET_VALUE, INSERT, DELETE };
+
  public:
   explicit BPlusTree(std::string name, BufferPoolManager *buffer_pool_manager, const KeyComparator &comparator,
                      int leaf_max_size = LEAF_PAGE_SIZE, int internal_max_size = INTERNAL_PAGE_SIZE);
@@ -56,9 +58,9 @@ class BPlusTree {
   bool GetValue(const KeyType &key, std::vector<ValueType> *result, Transaction *transaction = nullptr);
 
   // index iterator
-  INDEXITERATOR_TYPE Begin();
+  INDEXITERATOR_TYPE begin();
   INDEXITERATOR_TYPE Begin(const KeyType &key);
-  INDEXITERATOR_TYPE End();
+  INDEXITERATOR_TYPE end();
 
   void Print(BufferPoolManager *bpm) {
     ToString(reinterpret_cast<BPlusTreePage *>(bpm->FetchPage(root_page_id_)->GetData()), bpm);
@@ -91,13 +93,13 @@ class BPlusTree {
   template <typename N>
   N *Split(N *node);
 
-  void CoalesceOrRedistribute(BPlusTreePage *node, Transaction *transaction = nullptr);
+  void CoalesceOrRedistribute(BPlusTreePage *node, std::vector<Page *> *latches, Transaction *transaction = nullptr);
 
-  bool Coalesce(BPlusTreePage *left_node, BPlusTreePage *right_node, 
-                BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator> *parent,
-                int index, Transaction *transaction = nullptr);
+  bool Coalesce(BPlusTreePage *left_node, BPlusTreePage *right_node,
+                BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator> *parent, int index,
+                Transaction *transaction = nullptr);
 
-  void Redistribute(BPlusTreePage *neighbor_node, BPlusTreePage *node, int index);
+  void Redistribute(BPlusTreePage *left_node, BPlusTreePage *right_node, int index);
 
   bool AdjustRoot(BPlusTreePage *node);
 
@@ -109,10 +111,15 @@ class BPlusTree {
   void ToString(BPlusTreePage *page, BufferPoolManager *bpm) const;
 
  private:
-  Page* Search(const KeyType &key, Page* node);
-  BPlusTreePage* FindSiblingRedistribute(BPlusTreePage* node, int max_size, bool* is_right);
-  BPlusTreePage* FindSiblingCoalesce(BPlusTreePage* node,
-          BPlusTreeInternalPage<INTERNAL_KVC>*& parent, bool* is_right);
+  Page *Search(const KeyType &key, Page *node, OPTYPE op_type, std::vector<Page *> *latches);
+  Page *FindSiblingRedistribute(BPlusTreePage *node, int max_size, bool *is_right);
+  Page *FindSiblingCoalesce(BPlusTreePage *node, BPlusTreeInternalPage<INTERNAL_KVC> **parent, bool *is_right);
+  bool IsSafe(BPlusTreePage *node, OPTYPE op_type) const;
+  void PLatch(Page *page, OPTYPE op_type);
+  void PUnlatch(Page *page, OPTYPE op_type);
+  void LatchPush(std::vector<Page *> *latches, Page *page, OPTYPE op_type);
+  void ReleaseParent(std::vector<Page *> *latches, OPTYPE op_type, bool is_dirty);
+  void ReleaseAll(std::vector<Page *> *latches, OPTYPE op_type, bool is_dirty);
   // member variable
   std::string index_name_;
   page_id_t root_page_id_;
@@ -120,6 +127,7 @@ class BPlusTree {
   KeyComparator comparator_;
   int leaf_max_size_;
   int internal_max_size_;
+  std::mutex latch_;  // protect when update root page id
 };
 
 }  // namespace bustub

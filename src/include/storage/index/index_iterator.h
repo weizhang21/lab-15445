@@ -26,23 +26,29 @@ class IndexIterator {
   IndexIterator();
   ~IndexIterator();
 
-  IndexIterator(BPlusTreeLeafPage<KVC>* leaf_node, int start, 
-                BufferPoolManager *buffer_pool_manager);
+  IndexIterator(Page *page, int start, BufferPoolManager *buffer_pool_manager);
 
-  bool IsEnd();
+  bool isEnd() const;
 
   const MappingType &operator*();
 
   IndexIterator &operator++();
 
-  bool operator==(const IndexIterator &itr) const { 
-    return cur_node_->GetPageId() == itr.GetPageId() && 
-           cur_idx_ == itr.GetIndex();
+  bool operator==(const IndexIterator &itr) const {
+    if (cur_node_ == nullptr) {
+      return itr.isEnd();
+    }
+    return cur_node_->GetPageId() == itr.GetPageId() && cur_idx_ == itr.GetIndex();
   }
 
-  bool operator!=(const IndexIterator &itr) const { 
-    return cur_node_->GetPageId() != itr.GetPageId() || 
-           cur_idx_ != itr.GetIndex();
+  bool operator!=(const IndexIterator &itr) const {
+    if (isEnd() && itr.isEnd()) {
+      return false;
+    }
+    if (isEnd() || itr.isEnd()) {
+      return true;
+    }
+    return cur_node_->GetPageId() != itr.GetPageId() || cur_idx_ != itr.GetIndex();
   }
 
   page_id_t GetPageId() const { return cur_node_->GetPageId(); }
@@ -50,7 +56,8 @@ class IndexIterator {
 
  private:
   // add your own private member variables here
-  BPlusTreeLeafPage<KVC>* cur_node_;
+  Page *page_;
+  BPlusTreeLeafPage<KVC> *cur_node_;
   int cur_idx_;
   BufferPoolManager *buffer_pool_manager_;
 };

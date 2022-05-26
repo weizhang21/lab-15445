@@ -149,7 +149,7 @@ class BufferPoolManagerInstance : public BufferPoolManager {
     }
     cout << "], "
          << "lru[";
-    LRUReplacer *lru = static_cast<LRUReplacer*>(replacer_);
+    LRUReplacer *lru = static_cast<LRUReplacer *>(replacer_);
     for (auto it : lru->lru_list_) {
       cout << it << ",";
     }

@@ -13,8 +13,8 @@
 #include <sstream>
 
 #include "common/exception.h"
-#include "storage/page/b_plus_tree_page.h"
 #include "storage/page/b_plus_tree_internal_page.h"
+#include "storage/page/b_plus_tree_page.h"
 
 namespace bustub {
 /*****************************************************************************
@@ -27,8 +27,8 @@ namespace bustub {
  */
 INDEX_TEMPLATE_ARGUMENTS
 void B_PLUS_TREE_INTERNAL_PAGE_TYPE::Init(page_id_t page_id, page_id_t parent_id, int max_size) {
-  IndexPageType page_type = sizeof(ValueType) == sizeof(page_id_t) ? 
-                            IndexPageType::INTERNAL_PAGE : IndexPageType::LEAF_PAGE;
+  IndexPageType page_type =
+      sizeof(ValueType) == sizeof(page_id_t) ? IndexPageType::INTERNAL_PAGE : IndexPageType::LEAF_PAGE;
   SetPageType(page_type);
   SetLSN(INVALID_LSN);
   SetSize(0);
@@ -47,8 +47,7 @@ INDEX_TEMPLATE_ARGUMENTS
 void B_PLUS_TREE_INTERNAL_PAGE_TYPE::SetKeyAt(int index, const KeyType &key) { array_[index].first = key; }
 
 INDEX_TEMPLATE_ARGUMENTS
-void B_PLUS_TREE_INTERNAL_PAGE_TYPE::SetValueAt(int index, const ValueType &key) { array_[index].second = key; }
-
+void B_PLUS_TREE_INTERNAL_PAGE_TYPE::SetValueAt(int index, const ValueType &value) { array_[index].second = value; }
 
 /*
  * Helper method to find and return array index(or offset), so that its value
@@ -56,7 +55,7 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::SetValueAt(int index, const ValueType &key)
  */
 INDEX_TEMPLATE_ARGUMENTS
 int B_PLUS_TREE_INTERNAL_PAGE_TYPE::ValueIndex(const ValueType &value) const {
-  for (int i = 0; i < GetSize(); i ++) {
+  for (int i = 0; i < GetSize(); i++) {
     if (value == array_[i].second) {
       return i;
     }
@@ -82,7 +81,7 @@ ValueType B_PLUS_TREE_INTERNAL_PAGE_TYPE::ValueAt(int index) const { return arra
 INDEX_TEMPLATE_ARGUMENTS
 ValueType B_PLUS_TREE_INTERNAL_PAGE_TYPE::Lookup(const KeyType &key, const KeyComparator &comparator) const {
   // 1, find a key that more than input key ;
-  for (int i = 0 ; i < GetSize() - 1; ++i) {
+  for (int i = 0; i < GetSize() - 1; ++i) {
     if (comparator(key, KeyAt(i + 1)) < 0) {
       return ValueAt(i);
     }
@@ -118,10 +117,10 @@ int B_PLUS_TREE_INTERNAL_PAGE_TYPE::InsertNodeAfter(const ValueType &old_value, 
   int old_value_idx = ValueIndex(old_value);
   int size = GetSize();
   int idx = old_value_idx + 1;
-  for(int i = size; i > idx; --i) {
+  for (int i = size; i > idx; --i) {
     array_[i] = array_[i - 1];
   }
-  array_[idx] ={new_key, new_value};
+  array_[idx] = {new_key, new_value};
   IncreaseSize(1);
   return size + 1;
 }
@@ -146,10 +145,9 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::MoveHalfTo(BPlusTreeInternalPage *recipient
  * So I need to 'adopt' them by changing their parent page id, which needs to be persisted with BufferPoolManger
  */
 INDEX_TEMPLATE_ARGUMENTS
-void B_PLUS_TREE_INTERNAL_PAGE_TYPE::CopyNFrom(MappingType *items, int size, 
-                                               BufferPoolManager *buffer_pool_manager) {
+void B_PLUS_TREE_INTERNAL_PAGE_TYPE::CopyNFrom(MappingType *items, int size, BufferPoolManager *buffer_pool_manager) {
   int cur_size = GetSize();
-  for (int i = 0 ; i < size; ++i) {
+  for (int i = 0; i < size; ++i) {
     array_[cur_size + i] = *(items + i);
     BPlusTreePage::UpdateChildParentId(array_[cur_size + i].second, GetPageId(), buffer_pool_manager);
   }
@@ -167,7 +165,7 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::CopyNFrom(MappingType *items, int size,
 INDEX_TEMPLATE_ARGUMENTS
 void B_PLUS_TREE_INTERNAL_PAGE_TYPE::Remove(int index) {
   int size = GetSize();
-  for (int idx = index; idx < size - 1; idx ++) {
+  for (int idx = index; idx < size - 1; idx++) {
     array_[idx] = array_[idx + 1];
   }
   IncreaseSize(-1);
@@ -180,7 +178,7 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::Remove(int index) {
 INDEX_TEMPLATE_ARGUMENTS
 ValueType B_PLUS_TREE_INTERNAL_PAGE_TYPE::RemoveAndReturnOnlyChild() {
   SetSize(0);
-  return array_[0].second; 
+  return array_[0].second;
 }
 /*****************************************************************************
  * MERGE
@@ -218,7 +216,7 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::MoveFirstToEndOf(BPlusTreeInternalPage *rec
   recipient->CopyNFrom(&array_[0], 1, buffer_pool_manager);
 
   int size = GetSize();
-  for(int i = 0; i < size - 1; ++i) {
+  for (int i = 0; i < size - 1; ++i) {
     array_[i] = array_[i + 1];
   }
   IncreaseSize(-1);
@@ -229,10 +227,9 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::MoveFirstToEndOf(BPlusTreeInternalPage *rec
  * So I need to 'adopt' it by changing its parent page id, which needs to be persisted with BufferPoolManger
  */
 INDEX_TEMPLATE_ARGUMENTS
-void B_PLUS_TREE_INTERNAL_PAGE_TYPE::CopyLastFrom(const MappingType &pair, 
-                                                  BufferPoolManager *buffer_pool_manager) {
+void B_PLUS_TREE_INTERNAL_PAGE_TYPE::CopyLastFrom(const MappingType &pair, BufferPoolManager *buffer_pool_manager) {
   MappingType item = pair;
-  CopyNFrom(&item, 1 , buffer_pool_manager);
+  CopyNFrom(&item, 1, buffer_pool_manager);
 }
 
 /*
@@ -260,7 +257,6 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::MoveLastToFrontOf(BPlusTreeInternalPage *re
     recipient->CopyFirstFrom(array_[size - 1], buffer_pool_manager);
     IncreaseSize(-1);
   }
-  
 }
 
 /* Append an entry at the beginning.
@@ -268,11 +264,10 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::MoveLastToFrontOf(BPlusTreeInternalPage *re
  * So I need to 'adopt' it by changing its parent page id, which needs to be persisted with BufferPoolManger
  */
 INDEX_TEMPLATE_ARGUMENTS
-void B_PLUS_TREE_INTERNAL_PAGE_TYPE::CopyFirstFrom(const MappingType &pair,
-                                                   BufferPoolManager *buffer_pool_manager) {
+void B_PLUS_TREE_INTERNAL_PAGE_TYPE::CopyFirstFrom(const MappingType &pair, BufferPoolManager *buffer_pool_manager) {
   array_[0].first = pair.first;
   int size = GetSize();
-  for (int i = size; i > 0 ; --i) {
+  for (int i = size; i > 0; --i) {
     array_[i] = array_[i - 1];
   }
   array_[0].second = pair.second;

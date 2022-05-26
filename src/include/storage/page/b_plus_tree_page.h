@@ -62,8 +62,7 @@ class BPlusTreePage {
 
   void SetLSN(lsn_t lsn = INVALID_LSN);
 
-  static void UpdateChildParentId(page_id_t page_id, page_id_t parent_id, 
-                            BufferPoolManager *buffer_pool_manager);
+  static void UpdateChildParentId(page_id_t page_id, page_id_t parent_id, BufferPoolManager *buffer_pool_manager);
 
  private:
   // member variable, attributes that both internal and leaf page share

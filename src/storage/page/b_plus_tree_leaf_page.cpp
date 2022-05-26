@@ -13,8 +13,8 @@
 
 #include "common/exception.h"
 #include "common/rid.h"
-#include "storage/page/b_plus_tree_page.h"
 #include "storage/page/b_plus_tree_leaf_page.h"
+#include "storage/page/b_plus_tree_page.h"
 
 namespace bustub {
 
@@ -29,15 +29,15 @@ namespace bustub {
  */
 INDEX_TEMPLATE_ARGUMENTS
 void B_PLUS_TREE_LEAF_PAGE_TYPE::Init(page_id_t page_id, page_id_t parent_id, int max_size) {
-  IndexPageType page_type = sizeof(ValueType) == sizeof(page_id_t) ? 
-                            IndexPageType::INTERNAL_PAGE : IndexPageType::LEAF_PAGE;
+  IndexPageType page_type =
+      sizeof(ValueType) == sizeof(page_id_t) ? IndexPageType::INTERNAL_PAGE : IndexPageType::LEAF_PAGE;
   SetPageType(page_type);
   SetLSN(INVALID_LSN);
   SetSize(0);
   SetMaxSize(max_size);
   SetParentPageId(parent_id);
-  SetPageId(page_id); 
-  SetNextPageId(INVALID_PAGE_ID); 
+  SetPageId(page_id);
+  SetNextPageId(INVALID_PAGE_ID);
 }
 
 /**
@@ -54,9 +54,9 @@ void B_PLUS_TREE_LEAF_PAGE_TYPE::SetNextPageId(page_id_t next_page_id) { next_pa
  * NOTE: This method is only used when generating index iterator
  */
 INDEX_TEMPLATE_ARGUMENTS
-int B_PLUS_TREE_LEAF_PAGE_TYPE::KeyIndex(const KeyType &key, const KeyComparator &comparator) const { 
-  for (int i = 0 ; i < GetSize(); i ++) {
-    if (comparator(array_[i].first , key) == 0) {
+int B_PLUS_TREE_LEAF_PAGE_TYPE::KeyIndex(const KeyType &key, const KeyComparator &comparator) const {
+  for (int i = 0; i < GetSize(); i++) {
+    if (comparator(array_[i].first, key) == 0) {
       return i;
     }
   }
@@ -140,7 +140,7 @@ void B_PLUS_TREE_LEAF_PAGE_TYPE::CopyNFrom(MappingType *items, int size) {
  */
 INDEX_TEMPLATE_ARGUMENTS
 bool B_PLUS_TREE_LEAF_PAGE_TYPE::Lookup(const KeyType &key, ValueType *value, const KeyComparator &comparator) const {
-  for (int i = 0 ; i < GetSize(); i ++) {
+  for (int i = 0; i < GetSize(); i++) {
     if (comparator(key, array_[i].first) == 0) {
       *value = array_[i].second;
       return true;
@@ -159,8 +159,7 @@ bool B_PLUS_TREE_LEAF_PAGE_TYPE::Lookup(const KeyType &key, ValueType *value, co
  * @return   page size after deletion
  */
 INDEX_TEMPLATE_ARGUMENTS
-int B_PLUS_TREE_LEAF_PAGE_TYPE::RemoveAndDeleteRecord(const KeyType &key, 
-                                                      const KeyComparator &comparator) { 
+int B_PLUS_TREE_LEAF_PAGE_TYPE::RemoveAndDeleteRecord(const KeyType &key, const KeyComparator &comparator) {
   int size = GetSize();
   int idx = KeyIndex(key, comparator);
   if (idx == -1) {
@@ -197,7 +196,7 @@ INDEX_TEMPLATE_ARGUMENTS
 void B_PLUS_TREE_LEAF_PAGE_TYPE::MoveFirstToEndOf(BPlusTreeLeafPage *recipient) {
   recipient->CopyNFrom(&array_[0], 1);
   int size = GetSize();
-  for (int i = 0 ; i < size - 1; ++i) {
+  for (int i = 0; i < size - 1; ++i) {
     array_[i] = array_[i + 1];
   }
   IncreaseSize(-1);

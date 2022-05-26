@@ -15,38 +15,40 @@ INDEX_TEMPLATE_ARGUMENTS
 INDEXITERATOR_TYPE::IndexIterator() = default;
 
 INDEX_TEMPLATE_ARGUMENTS
-INDEXITERATOR_TYPE::~IndexIterator() {
-  buffer_pool_manager_->UnpinPage(cur_node_->GetPageId(), false);
-};
-
- INDEX_TEMPLATE_ARGUMENTS
-INDEXITERATOR_TYPE::IndexIterator(BPlusTreeLeafPage<KVC>* leaf_node, int start,
-            BufferPoolManager *buffer_pool_manager)
-        : cur_node_(leaf_node),
-          cur_idx_(start),
-          buffer_pool_manager_(buffer_pool_manager) {}
+INDEXITERATOR_TYPE::~IndexIterator() = default;
 
 INDEX_TEMPLATE_ARGUMENTS
-bool INDEXITERATOR_TYPE::IsEnd() { 
-  return cur_node_->GetNextPageId() == INVALID_PAGE_ID && 
-         cur_idx_ == cur_node_->GetSize();
+INDEXITERATOR_TYPE::IndexIterator(Page *page, int start, BufferPoolManager *buffer_pool_manager)
+    : page_(page), cur_node_(nullptr), cur_idx_(start), buffer_pool_manager_(buffer_pool_manager) {
+  if (page != nullptr) {
+    cur_node_ = reinterpret_cast<BPlusTreeLeafPage<KVC> *>(page->GetData());
+  }
 }
 
 INDEX_TEMPLATE_ARGUMENTS
-const MappingType &INDEXITERATOR_TYPE::operator*() {
-  return cur_node_->GetItem(cur_idx_);
-}
+bool INDEXITERATOR_TYPE::isEnd() const { return cur_node_ == nullptr; }
 
 INDEX_TEMPLATE_ARGUMENTS
-INDEXITERATOR_TYPE &INDEXITERATOR_TYPE::operator++() { 
+const MappingType &INDEXITERATOR_TYPE::operator*() { return cur_node_->GetItem(cur_idx_); }
+
+INDEX_TEMPLATE_ARGUMENTS
+INDEXITERATOR_TYPE &INDEXITERATOR_TYPE::operator++() {
+  cur_idx_++;
   if (cur_idx_ == cur_node_->GetSize()) {
     page_id_t next_page_id = cur_node_->GetNextPageId();
+    page_->RUnlatch();
     buffer_pool_manager_->UnpinPage(cur_node_->GetPageId(), false);
-    Page* next_page = buffer_pool_manager_->FetchPage(next_page_id);
-    cur_node_ = reinterpret_cast<BPlusTreeLeafPage<KVC>*>(next_page->GetData());
-    cur_idx_ = 0;
+    if (next_page_id != INVALID_PAGE_ID) {
+      Page *next_page = buffer_pool_manager_->FetchPage(next_page_id);
+      next_page->RLatch();
+      page_ = next_page;
+      cur_node_ = reinterpret_cast<BPlusTreeLeafPage<KVC> *>(next_page->GetData());
+      cur_idx_ = 0;
+    } else {
+      page_ = nullptr;
+      cur_node_ = nullptr;
+    }
   }
-  cur_idx_ ++;
   return *this;
 }
 
