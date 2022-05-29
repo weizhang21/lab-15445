@@ -38,8 +38,8 @@ TableIterator &TableIterator::operator++() {
   auto cur_page = static_cast<TablePage *>(buffer_pool_manager->FetchPage(tuple_->rid_.GetPageId()));
   cur_page->RLatch();
   assert(cur_page != nullptr);  // all pages are pinned
-
   RID next_tuple_rid;
+
   if (!cur_page->GetNextTupleRid(tuple_->rid_,
                                  &next_tuple_rid)) {  // end of this page
     while (cur_page->GetNextPageId() != INVALID_PAGE_ID) {
@@ -54,7 +54,6 @@ TableIterator &TableIterator::operator++() {
     }
   }
   tuple_->rid_ = next_tuple_rid;
-
   if (*this != table_heap_->End()) {
     table_heap_->GetTuple(tuple_->rid_, tuple_, txn_);
   }

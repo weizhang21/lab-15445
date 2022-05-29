@@ -619,7 +619,7 @@ bool BPLUSTREE_TYPE::AdjustRoot(BPlusTreePage *old_root_node) {
  * @return : index iterator
  */
 INDEX_TEMPLATE_ARGUMENTS
-INDEXITERATOR_TYPE BPLUSTREE_TYPE::begin() {
+INDEXITERATOR_TYPE BPLUSTREE_TYPE::Begin() {
   Page *page = buffer_pool_manager_->FetchPage(root_page_id_);
   PLatch(page, OPTYPE::GET_VALUE);
   BPlusTreePage *node = reinterpret_cast<BPlusTreePage *>(page->GetData());
@@ -659,7 +659,7 @@ INDEXITERATOR_TYPE BPLUSTREE_TYPE::Begin(const KeyType &key) {
  * @return : index iterator
  */
 INDEX_TEMPLATE_ARGUMENTS
-INDEXITERATOR_TYPE BPLUSTREE_TYPE::end() {
+INDEXITERATOR_TYPE BPLUSTREE_TYPE::End() {
   static INDEXITERATOR_TYPE *end = new INDEXITERATOR_TYPE(nullptr, -1, nullptr);
   return *end;
 }

@@ -61,10 +61,8 @@ bool BufferPoolManagerInstance::FlushPgImp(page_id_t page_id) {
     return false;
   }
   Page *page = pages_ + page_table_[page_id];
-  page->WLatch();
   page->is_dirty_ = false;
   disk_manager_->WritePage(page_id, page->GetData());
-  page->WUnlatch();
   return true;
 }
 
@@ -74,10 +72,8 @@ void BufferPoolManagerInstance::FlushAllPgsImp() {
   for (auto &it : page_table_) {
     page_id_t page_id = it.first;
     Page *page = pages_ + page_table_[it.first];
-    page->WLatch();
     page->is_dirty_ = false;
     disk_manager_->WritePage(page_id, page->GetData());
-    page->WUnlatch();
   }
 }
 
@@ -103,12 +99,10 @@ Page *BufferPoolManagerInstance::NewPgImp(page_id_t *page_id) {
   } else {  // allocate frame from lruReplace
     BUSTUB_ASSERT(replacer_->Victim(&frame_id), true);
     page = pages_ + frame_id;
-    page->WLatch();
     if (page->IsDirty()) {
       page->is_dirty_ = false;
       disk_manager_->WritePage(page->GetPageId(), page->GetData());
     }
-    page->WUnlatch();
     page_table_.erase(page->GetPageId());
   }
   // init page info
@@ -117,7 +111,6 @@ Page *BufferPoolManagerInstance::NewPgImp(page_id_t *page_id) {
   page_table_[*page_id] = frame_id;
   page->page_id_ = *page_id;
   page->pin_count_ = 1;
-  page->WUnlatch();
   // Print();
   return page;
 }
@@ -136,9 +129,7 @@ Page *BufferPoolManagerInstance::FetchPgImp(page_id_t page_id) {
   // 1.1 p exist
   if (page_table_.find(page_id) != page_table_.end()) {
     page = pages_ + page_table_[page_id];
-    page->WLatch();
     page->pin_count_ += 1;
-    page->WUnlatch();
     replacer_->Pin(page_table_[page_id]);
     // Print();
     return page;
@@ -157,7 +148,6 @@ Page *BufferPoolManagerInstance::FetchPgImp(page_id_t page_id) {
 
   // 2. if dirty, flush
   page = pages_ + frame_id;
-  page->WLatch();
   if (page->IsDirty()) {
     page->is_dirty_ = false;
     disk_manager_->WritePage(page->GetPageId(), page->GetData());
@@ -173,7 +163,6 @@ Page *BufferPoolManagerInstance::FetchPgImp(page_id_t page_id) {
   page->pin_count_ += 1;
   disk_manager_->ReadPage(page_id, page->GetData());
 
-  page->WUnlatch();
   // Print();
   return page;
 }
@@ -190,13 +179,10 @@ bool BufferPoolManagerInstance::DeletePgImp(page_id_t page_id) {
     return true;
   }
   Page *page = pages_ + page_table_[page_id];
-  page->RLatch();
   // 2, non-zero pin-count
   if (page->GetPinCount() > 0) {
-    page->RUnlatch();
     return false;
   }
-  page->RUnlatch();
 
   // 3, delete from page table ,remove from replacer , return to free list
   frame_id_t frame_id = page_table_[page_id];
@@ -213,20 +199,15 @@ bool BufferPoolManagerInstance::UnpinPgImp(page_id_t page_id, bool is_dirty) {
   }
   Page *page = pages_ + page_table_[page_id];
   // check pin_count
-  page->RLatch();
   if (page->GetPinCount() <= 0) {
-    page->RUnlatch();
     return false;
   }
-  page->RUnlatch();
 
-  page->WLatch();
   page->is_dirty_ |= is_dirty;
   page->pin_count_ -= 1;
   if (page->GetPinCount() == 0) {  // if pin_count become zero , add to replacer
     replacer_->Unpin(page_table_[page->GetPageId()]);
   }
-  page->WUnlatch();
   // Print();
   return true;
 }
