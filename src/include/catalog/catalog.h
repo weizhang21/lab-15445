@@ -21,7 +21,7 @@
 #include "buffer/buffer_pool_manager.h"
 #include "catalog/schema.h"
 #include "container/hash/hash_function.h"
-#include "storage/index/extendible_hash_table_index.h"
+#include "storage/index/b_plus_tree_index.h"
 #include "storage/index/index.h"
 #include "storage/table/table_heap.h"
 
@@ -214,8 +214,7 @@ class Catalog {
     // TODO(Kyle): We should update the API for CreateIndex
     // to allow specification of the index type itself, not
     // just the key, value, and comparator types
-    auto index = std::make_unique<ExtendibleHashTableIndex<KeyType, ValueType, KeyComparator>>(std::move(meta), bpm_,
-                                                                                               hash_function);
+    auto index = std::make_unique<BPlusTreeIndex<KeyType, ValueType, KeyComparator>>(std::move(meta), bpm_);
 
     // Populate the index with all tuples in table heap
     auto *table_meta = GetTable(table_name);
