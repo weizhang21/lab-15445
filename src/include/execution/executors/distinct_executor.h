@@ -17,6 +17,7 @@
 
 #include "execution/executors/abstract_executor.h"
 #include "execution/plans/distinct_plan.h"
+#include <unordered_set>
 
 namespace bustub {
 
@@ -49,9 +50,12 @@ class DistinctExecutor : public AbstractExecutor {
   const Schema *GetOutputSchema() override { return plan_->OutputSchema(); };
 
  private:
+
   /** The distinct plan node to be executed */
   const DistinctPlanNode *plan_;
   /** The child executor from which tuples are obtained */
   std::unique_ptr<AbstractExecutor> child_executor_;
+  std::vector<uint32_t> col_idxs;
+  std::unordered_set<DistinctHashKey> distinct_set_;
 };
 }  // namespace bustub

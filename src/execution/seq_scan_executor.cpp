@@ -25,16 +25,17 @@ void SeqScanExecutor::Init() {}
 
 bool SeqScanExecutor::Next(Tuple *tuple, RID *rid) { 
   auto out_schema = GetOutputSchema();
+  auto table_schema = &exec_ctx_->GetCatalog()->GetTable(plan_->GetTableOid())->schema_;
   while (table_iter_ != table_iter_end_) {
     auto cur_tuple = *table_iter_;
     ++table_iter_;
     auto predicate = plan_->GetPredicate();
-    if (predicate == nullptr || predicate->Evaluate(&cur_tuple, out_schema).GetAs<bool>()) {
+    if (predicate == nullptr || predicate->Evaluate(&cur_tuple, table_schema).GetAs<bool>()) {
       auto& cols = out_schema->GetColumns();
       std::vector<Value> values;
       uint32_t size = 0;
       for (auto& col : cols) {
-        auto val = cur_tuple.GetValue(out_schema, out_schema->GetColIdx(col.GetName()));
+        auto val = cur_tuple.GetValue(table_schema, table_schema->GetColIdx(col.GetName()));
         values.emplace_back(std::move(val));
         size += Type::GetTypeSize(col.GetType());
       }
