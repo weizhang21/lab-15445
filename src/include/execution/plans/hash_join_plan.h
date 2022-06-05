@@ -16,6 +16,8 @@
 #include <vector>
 
 #include "execution/plans/abstract_plan.h"
+#include "execution/expressions/column_value_expression.h"
+#include "common/util/hash_util.h"
 
 namespace bustub {
 
@@ -65,4 +67,29 @@ class HashJoinPlanNode : public AbstractPlanNode {
   const AbstractExpression *right_key_expression_;
 };
 
+struct HashJoinKey {
+  Tuple* tuple;
+  Schema* schema;
+  ColumnValueExpression* col_expr;
+
+  bool operator==(const HashJoinKey& other) const {
+    auto left_val = tuple->GetValue(schema, col_expr->GetColIdx());
+    auto right_val = tuple->GetValue(other.schema, other.col_expr->GetColIdx());
+    return left_val.CompareEquals(right_val) == CmpBool::CmpTrue;
+  }
+};
+
 }  // namespace bustub
+
+namespace std {
+/** Implements std::hash on DistinctHashKey */
+template <>
+struct hash<bustub::HashJoinKey> {
+  std::size_t operator()(const bustub::HashJoinKey &hash_key) const {
+    auto val = hash_key.tuple->GetValue(hash_key.schema, hash_key.col_expr->GetColIdx());
+    size_t curr_hash = bustub::HashUtil::HashValue(&val);
+    return curr_hash;
+  }
+};
+
+} // namespace std

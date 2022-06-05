@@ -14,6 +14,7 @@
 
 #include <memory>
 #include <utility>
+#include <unordered_map>
 
 #include "execution/executor_context.h"
 #include "execution/executors/abstract_executor.h"
@@ -36,6 +37,8 @@ class HashJoinExecutor : public AbstractExecutor {
    */
   HashJoinExecutor(ExecutorContext *exec_ctx, const HashJoinPlanNode *plan,
                    std::unique_ptr<AbstractExecutor> &&left_child, std::unique_ptr<AbstractExecutor> &&right_child);
+  
+  ~HashJoinExecutor();
 
   /** Initialize the join */
   void Init() override;
@@ -54,6 +57,11 @@ class HashJoinExecutor : public AbstractExecutor {
  private:
   /** The NestedLoopJoin plan node to be executed. */
   const HashJoinPlanNode *plan_;
+
+  std::unique_ptr<AbstractExecutor> left_child_;
+  std::unique_ptr<AbstractExecutor> right_child_;
+
+  std::unordered_map<HashJoinKey, Tuple*> join_map;
 };
 
 }  // namespace bustub

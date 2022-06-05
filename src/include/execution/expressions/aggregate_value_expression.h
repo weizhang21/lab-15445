@@ -35,7 +35,7 @@ class AggregateValueExpression : public AbstractExpression {
 
   /** Invalid operation for `AggregateValueExpression` */
   Value Evaluate(const Tuple *tuple, const Schema *schema) const override {
-    UNREACHABLE("Aggregation should only refer to group-by and aggregates.");
+    UNREACHABLE("Evaluate Aggregation should only refer to group-by and aggregates.");
   }
 
   /** Invalid operation for `AggregateValueExpression` */
