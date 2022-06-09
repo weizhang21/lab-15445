@@ -1,7 +1,7 @@
-lab1 https://15445.courses.cs.cmu.edu/fall2021/project1/
-lab2 https://15445.courses.cs.cmu.edu/fall2020/project2/
-lab3 https://15445.courses.cs.cmu.edu/fall2021/project3/
-lab4 https://15445.courses.cs.cmu.edu/fall2021/project4/
+lab1 https://15445.courses.cs.cmu.edu/fall2021/project1/ <br>
+lab2 https://15445.courses.cs.cmu.edu/fall2020/project2/ <br>
+lab3 https://15445.courses.cs.cmu.edu/fall2021/project3/ <br>
+lab4 https://15445.courses.cs.cmu.edu/fall2021/project4/ <br>
 
 <img src="logo/bustub-whiteborder.svg" alt="BusTub Logo" height="200">
 
