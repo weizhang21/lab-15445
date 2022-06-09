@@ -53,6 +53,15 @@ class LockManager {
     txn_id_t upgrading_ = INVALID_TXN_ID;
     
     std::mutex mutex;
+
+    std::list<LockRequest>::iterator GetIterByTxnId(txn_id_t txn_id) {
+      for (auto iter = request_queue_.begin(); iter != request_queue_.end(); ++iter) {
+        if (iter->txn_id_ == txn_id) {
+          return iter;
+        }
+      }
+      throw Exception("should unreach");
+    }
   };
 
  public:
@@ -105,6 +114,28 @@ class LockManager {
    * @return true if the unlock is successful, false otherwise
    */
   bool Unlock(Transaction *txn, const RID &rid);
+
+  bool Lock(Transaction* txn, RID rid, bool is_read = true) {
+    if (!is_read) {
+      if (txn->GetExclusiveLockSet()->count(rid)) {
+        return true;
+      }
+      if (txn->GetSharedLockSet()->count(rid)) {
+        return LockUpgrade(txn, rid);
+      }
+      return LockExclusive(txn, rid);
+    }
+
+    if (txn->GetSharedLockSet()->count(rid)) {
+        return true;
+    }
+
+    if (txn->GetIsolationLevel() == IsolationLevel::READ_UNCOMMITTED) {
+      return true;
+    }
+
+    return LockShared(txn, rid);
+  }
 
  private:
   std::mutex latch_;

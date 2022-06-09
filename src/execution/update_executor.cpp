@@ -36,10 +36,15 @@ bool UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) {
   
   const AbstractPlanNode* child = plan_->GetChildPlan();
   auto executor = ExecutorFactory::CreateExecutor(GetExecutorContext(), child);
+  auto txn = exec_ctx_->GetTransaction();
+  auto lock_ma = exec_ctx_->GetLockManager();
   while(child_executor_->Next(tuple, rid)) {
     auto update_tuple = GenerateUpdatedTuple(*tuple);
     if (table_info->table_->UpdateTuple(update_tuple, *rid, GetExecutorContext()->GetTransaction())) {
+      lock_ma->Lock(txn, *rid, false);
       for(auto& index : index_infos) {
+        IndexWriteRecord iwr(*rid, plan_->TableOid(), WType::UPDATE, *tuple, index->index_oid_, exec_ctx_->GetCatalog());
+        txn->AppendTableWriteRecord(std::move(iwr));
         index->index_->DeleteEntry(*tuple, *rid, GetExecutorContext()->GetTransaction());
         index->index_->InsertEntry(update_tuple, *rid, GetExecutorContext()->GetTransaction());
       }

@@ -101,7 +101,6 @@ void TransactionManager::Abort(Transaction *txn) {
   }
   table_write_set->clear();
   index_write_set->clear();
-
   // Release all the locks.
   ReleaseLocks(txn);
   // Release the global transaction latch.

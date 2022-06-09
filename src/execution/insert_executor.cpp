@@ -33,20 +33,28 @@ bool InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) {
   TableInfo* table_info = GetExecutorContext()->GetCatalog()->GetTable(plan_->TableOid());
   std::vector<IndexInfo*> index_infos = GetExecutorContext()->GetCatalog()->GetTableIndexes(table_info->name_);
   auto schema = &table_info->schema_;
+  auto txn = exec_ctx_->GetTransaction();
+  auto lock_ma = exec_ctx_->GetLockManager();
   if (plan_->IsRawInsert()) {
     auto& rows = plan_->RawValues();
     for(auto& row : rows) {
       *tuple = Tuple(row, schema);
       if (table_info->table_->InsertTuple(*tuple, rid, GetExecutorContext()->GetTransaction())) {
+        lock_ma->Lock(txn, *rid, false);
         for (auto index : index_infos) {
-        index->index_->InsertEntry(*tuple, *rid, GetExecutorContext()->GetTransaction()); 
+          IndexWriteRecord iwr(*rid, plan_->TableOid(), WType::INSERT, *tuple, index->index_oid_, exec_ctx_->GetCatalog());
+          txn->AppendTableWriteRecord(std::move(iwr));
+          index->index_->InsertEntry(*tuple, *rid, GetExecutorContext()->GetTransaction()); 
         }
       }
     }
   } else {
     while(child_executor_->Next(tuple, rid)) {
       if (table_info->table_->InsertTuple(*tuple, rid, GetExecutorContext()->GetTransaction())) {
+        lock_ma->Lock(txn, *rid, false);
         for (auto index : index_infos) {
+          IndexWriteRecord iwr(*rid, plan_->TableOid(), WType::INSERT, *tuple, index->index_oid_, exec_ctx_->GetCatalog());
+          txn->AppendTableWriteRecord(std::move(iwr));
           index->index_->InsertEntry(*tuple, *rid, GetExecutorContext()->GetTransaction()); 
         }
       }

@@ -35,12 +35,10 @@ bool LockManager::LockShared(Transaction *txn, const RID &rid) {
   // std::cout << "S-lock(" << txn->GetTransactionId() << ", " << rid << ")" << std::endl;
   latch_.lock();
   auto& req_q =  lock_table_[rid];
+  std::unique_lock<std::mutex> lock(req_q.mutex);
   latch_.unlock();
 
-  std::unique_lock<std::mutex> lock(req_q.mutex);
-
-  req_q.request_queue_.emplace_front(txn->GetTransactionId(), LockMode::SHARED);
-  auto lock_req = req_q.request_queue_.begin();
+  req_q.request_queue_.push_front({txn->GetTransactionId(), LockMode::SHARED});
 
   // if older txn request newer txn lock: newer txn abort
   for (auto iter = req_q.request_queue_.rbegin(); iter != req_q.request_queue_.rend(); ++iter) {
@@ -58,10 +56,9 @@ bool LockManager::LockShared(Transaction *txn, const RID &rid) {
     return true;
   };
 
-  while (should_wait()) {
-    req_q.cv_.wait(lock);
-  }
+  while (should_wait()) req_q.cv_.wait(lock);
 
+  auto lock_req = req_q.GetIterByTxnId(txn->GetTransactionId());
   if (txn->GetState() != TransactionState::GROWING) {
     req_q.request_queue_.erase(lock_req);
     req_q.cv_.notify_all();
@@ -81,14 +78,11 @@ bool LockManager::LockExclusive(Transaction *txn, const RID &rid) {
   }
   // std::cout << "X-lock(" << txn->GetTransactionId() << ", " << rid << ")" << std::endl;
   latch_.lock();
-
   auto& req_q =  lock_table_[rid];
+  std::unique_lock<std::mutex> lock(req_q.mutex);
   latch_.unlock();
 
-  std::unique_lock<std::mutex> lock(req_q.mutex);
-
   req_q.request_queue_.emplace_front(txn->GetTransactionId(), LockMode::EXCLUSIVE);
-  auto lock_req = req_q.request_queue_.begin();
   
   // if older txn request newer txn lock: newer txn abort
   for (auto iter = req_q.request_queue_.begin(); iter != req_q.request_queue_.end(); ++iter) {
@@ -109,6 +103,7 @@ bool LockManager::LockExclusive(Transaction *txn, const RID &rid) {
     req_q.cv_.wait(lock);
   }
 
+  auto lock_req = req_q.GetIterByTxnId(txn->GetTransactionId());
   if (txn->GetState() != TransactionState::GROWING) {
     req_q.request_queue_.erase(lock_req);
     req_q.cv_.notify_all();
@@ -130,9 +125,9 @@ bool LockManager::LockUpgrade(Transaction *txn, const RID &rid) {
 
   latch_.lock();
   auto& req_q =  lock_table_[rid];
+  std::unique_lock<std::mutex> lock(req_q.mutex);
   latch_.unlock();
 
-  std::unique_lock<std::mutex> lock(req_q.mutex);
   bool has_s_lock = false;
   for (auto iter = req_q.request_queue_.begin(); iter != req_q.request_queue_.end(); ++iter) {
     if(iter->txn_id_ == txn->GetTransactionId()) {
@@ -153,8 +148,20 @@ bool LockManager::LockUpgrade(Transaction *txn, const RID &rid) {
     }
   }
 
-  req_q.request_queue_.emplace_back(txn->GetTransactionId(), LockMode::EXCLUSIVE);
-  auto lock_req = req_q.request_queue_.begin();
+  bool has_insert = false;
+  for (auto iter = req_q.request_queue_.begin(); iter != req_q.request_queue_.end(); ++iter) {
+    if (iter->granted_) {
+    req_q.request_queue_.insert(iter, {txn->GetTransactionId(), LockMode::EXCLUSIVE});
+    has_insert = true;
+    break;
+    }
+  }
+  
+  if (!has_insert) {
+    req_q.request_queue_.emplace_front(txn->GetTransactionId(), LockMode::EXCLUSIVE);
+  }
+  req_q.upgrading_ = txn->GetTransactionId();
+
   auto should_wait = [&]()-> bool {
     if (txn->GetState() != TransactionState::GROWING) return false;
     return txn->GetTransactionId() != req_q.request_queue_.back().txn_id_;
@@ -166,6 +173,7 @@ bool LockManager::LockUpgrade(Transaction *txn, const RID &rid) {
     req_q.cv_.wait(lock);
   }
 
+  auto lock_req = req_q.GetIterByTxnId(txn->GetTransactionId());
   if (txn->GetState() != TransactionState::GROWING) {
     req_q.request_queue_.erase(lock_req);
     req_q.cv_.notify_all();
@@ -173,6 +181,7 @@ bool LockManager::LockUpgrade(Transaction *txn, const RID &rid) {
     throw TransactionAbortException(txn->GetTransactionId(), AbortReason::LOCK_ON_SHRINKING);
   }
 
+  req_q.upgrading_ = INVALID_TXN_ID;
   lock_req->granted_ = true;
   txn->GetExclusiveLockSet()->emplace(rid);
   return true;
@@ -200,7 +209,6 @@ bool LockManager::Unlock(Transaction *txn, const RID &rid) {
       return true;
     }
   }
-  req_q.cv_.notify_all();
   return false;
 }
 

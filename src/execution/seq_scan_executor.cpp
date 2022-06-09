@@ -26,7 +26,9 @@ void SeqScanExecutor::Init() {}
 bool SeqScanExecutor::Next(Tuple *tuple, RID *rid) { 
   auto out_schema = GetOutputSchema();
   auto table_schema = &exec_ctx_->GetCatalog()->GetTable(plan_->GetTableOid())->schema_;
+  auto lock_ma = exec_ctx_->GetLockManager();
   while (table_iter_ != table_iter_end_) {
+    lock_ma->Lock(exec_ctx_->GetTransaction(), table_iter_->GetRid());
     auto cur_tuple = *table_iter_;
     ++table_iter_;
     auto predicate = plan_->GetPredicate();
